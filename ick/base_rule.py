@@ -51,6 +51,7 @@ class GenericPreparedStep(Step[str, bytes | Erasure]):
         append_filenames: bool,
         rule_prepare: Callable[[], bool] | None = None,
         prefix: str = "",
+        exclude_patterns: Sequence[str] = (),
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -60,6 +61,7 @@ class GenericPreparedStep(Step[str, bytes | Erasure]):
         # TODO figure out how extra_inputs factors in
         assert patterns is not None, "File scoped rules require an `inputs` section in the rule config!"
         self.patterns = patterns
+        self.exclude_patterns = exclude_patterns
         self.match_prefix = project_path
         self.matches_at_least_once = False
         self.cmdline = cmdline
@@ -77,6 +79,9 @@ class GenericPreparedStep(Step[str, bytes | Erasure]):
 
     def match(self, key: str) -> bool:
         m = bool(match_prefix_patterns(key, self.match_prefix, self.patterns))
+        if m and self.exclude_patterns:
+            filename = key[len(self.match_prefix):].lstrip("/")
+            m = not any(fnmatch(filename, pat) for pat in self.exclude_patterns)
         self.matches_at_least_once |= m
         return m
 
@@ -391,9 +396,15 @@ class BaseRule:
     def add_steps_to_run(self, projects: Any, env: Mapping[str, str], run: Run[str, bytes | Erasure]) -> None:
         qualname = self.rule_config.qualname
         prefix = self.rule_config.prefix
+        name_in_repo = self.rule_config.name_in_repo
 
         if self.rule_config.scope == Scope.FILE:
             for p in projects:
+                if self.rule_config.project_types is not None and p.typ not in self.rule_config.project_types:
+                    continue
+                if name_in_repo in p.config.ignore_rules:
+                    continue
+                per_rule = p.config.rules.get(name_in_repo)
                 run.add_step(
                     GenericPreparedStep(
                         qualname=qualname,
@@ -404,6 +415,7 @@ class BaseRule:
                         append_filenames=True,
                         rule_prepare=self.prepare,
                         prefix=prefix,
+                        exclude_patterns=per_rule.exclude_filenames if per_rule else (),
                         batch_size=self.rule_config.batch_size,
                     )
                 )
@@ -413,6 +425,11 @@ class BaseRule:
             # project-relative paths.  There's some work to do here once they
             # can nest.
             for p in projects:
+                if self.rule_config.project_types is not None and p.typ not in self.rule_config.project_types:
+                    continue
+                if name_in_repo in p.config.ignore_rules:
+                    continue
+                per_rule = p.config.rules.get(name_in_repo)
                 run.add_step(
                     GenericPreparedStep(
                         qualname=qualname,
@@ -425,6 +442,7 @@ class BaseRule:
                         append_filenames=False,
                         rule_prepare=self.prepare,
                         prefix=prefix,
+                        exclude_patterns=per_rule.exclude_filenames if per_rule else (),
                         eager=False,
                         batch_size=-1,
                     )
