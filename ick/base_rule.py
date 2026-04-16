@@ -80,7 +80,7 @@ class GenericPreparedStep(Step[str, bytes | Erasure]):
     def match(self, key: str) -> bool:
         m = bool(match_prefix_patterns(key, self.match_prefix, self.patterns))
         if m and self.exclude_patterns:
-            filename = key[len(self.match_prefix):].lstrip("/")
+            filename = key[len(self.match_prefix) :].lstrip("/")
             m = not any(fnmatch(filename, pat) for pat in self.exclude_patterns)
         self.matches_at_least_once |= m
         return m
@@ -415,7 +415,7 @@ class BaseRule:
                         append_filenames=True,
                         rule_prepare=self.prepare,
                         prefix=prefix,
-                        exclude_patterns=per_rule.exclude_filenames if per_rule else (),
+                        exclude_patterns=[*p.config.ignore_filenames, *(per_rule.exclude_filenames if per_rule else ())],
                         batch_size=self.rule_config.batch_size,
                     )
                 )
@@ -442,7 +442,7 @@ class BaseRule:
                         append_filenames=False,
                         rule_prepare=self.prepare,
                         prefix=prefix,
-                        exclude_patterns=per_rule.exclude_filenames if per_rule else (),
+                        exclude_patterns=[*p.config.ignore_filenames, *(per_rule.exclude_filenames if per_rule else ())],
                         eager=False,
                         batch_size=-1,
                     )
