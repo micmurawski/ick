@@ -27,6 +27,8 @@ from .project_finder import find_projects as find_projects_fn
 from .runner import Runner, _demo_done_callback, _demo_status_callback, fmt_name
 from .types_project import maybe_repo
 
+ALLOW_LEGACY_NAME_FILTER_OPTION = "--allow-legacy-name-filter"
+
 
 @click.group(cls=FlexibleGroup)
 @click.version_option()
@@ -81,16 +83,23 @@ def find_projects(ctx: click.Context) -> None:
 
 
 @main.command()
+@click.option(ALLOW_LEGACY_NAME_FILTER_OPTION, is_flag=True, help="Allow legacy slash-joined rule-name filtering")
 @click.option("--json", "json_flag", is_flag=True, help="Outputs json with rules info by prefixed name (can be used with run --json)")
 @click.option("-k", "substring", default="", help="Substring match on rule name")
 @click.argument("filters", nargs=-1)
 @click.pass_context
-def list_rules(ctx: click.Context, json_flag: bool, substring: str, filters: list[str]) -> None:
+def list_rules(
+    ctx: click.Context,
+    allow_legacy_name_filter: bool,
+    json_flag: bool,
+    substring: str,
+    filters: list[str],
+) -> None:
     """
     Lists rules applicable to the current repo
     """
     ctx.obj.filter_config.min_urgency = min(Urgency)  # List all urgencies unless specified by filters
-    apply_filters(ctx, filters, substring)
+    apply_filters(ctx, filters, substring, allow_legacy_name_filter=allow_legacy_name_filter)
     r = Runner(ctx.obj, ctx.obj.repo)
     if json_flag:
         r.echo_rules_json()
@@ -100,10 +109,17 @@ def list_rules(ctx: click.Context, json_flag: bool, substring: str, filters: lis
 
 @main.command()
 @click.pass_context
+@click.option(ALLOW_LEGACY_NAME_FILTER_OPTION, is_flag=True, help="Allow legacy slash-joined rule-name filtering")
 @click.option("-k", "substring", default="", help="Substring match on rule name")
 @click.option("--update", is_flag=True, help="Update expected test output with actual rule output")
 @click.argument("filters", nargs=-1)
-def test_rules(ctx: click.Context, substring: str, update: bool, filters: list[str]) -> None:
+def test_rules(
+    ctx: click.Context,
+    allow_legacy_name_filter: bool,
+    substring: str,
+    update: bool,
+    filters: list[str],
+) -> None:
     """
     Run rule self-tests.
 
@@ -113,7 +129,7 @@ def test_rules(ctx: click.Context, substring: str, update: bool, filters: list[s
     current rule implementation. Review the changes before committing.
     """
     ctx.obj.filter_config.min_urgency = min(Urgency)  # Test all urgencies unless specified by filters
-    apply_filters(ctx, filters, substring)
+    apply_filters(ctx, filters, substring, allow_legacy_name_filter=allow_legacy_name_filter)
     r = Runner(ctx.obj, ctx.obj.repo)
     sys.exit(r.test_rules(update=update))
 
@@ -185,10 +201,13 @@ def add_rule(
 @click.option("-n", "--dry-run", is_flag=True, help="Dry run mode, show counts of lines to change (default)")
 @click.option("-p", "--patch", is_flag=True, help="Show patches of changes to make")
 @click.option("--apply", is_flag=True, help="Apply changes")
-@click.option("--json", "json_flag", is_flag=True, help="Outputs modifications json by prefixed rule name (can be used with list-rules --json)")
+@click.option(
+    "--json", "json_flag", is_flag=True, help="Outputs modifications json by prefixed rule name (can be used with list-rules --json)"
+)
 @click.option("--skip-update", is_flag=True, help="When loading rules from a repo, don't pull if some version already exists locally")
 @click.option("--emojis", is_flag=True, help="Show a waterfall of emojis as work is being done")
 @click.option("--parallelism", type=int, default=0, help="Number of parallel workers (default: auto)")
+@click.option(ALLOW_LEGACY_NAME_FILTER_OPTION, is_flag=True, help="Allow legacy slash-joined rule-name filtering")
 @click.option("-k", "substring", default="", help="Substring match on rule name")
 @click.argument("filters", nargs=-1)
 @click.pass_context
@@ -201,6 +220,7 @@ def run(
     skip_update: bool,
     emojis: bool,
     parallelism: int,
+    allow_legacy_name_filter: bool,
     substring: str,
     filters: list[str],
 ) -> None:
@@ -231,7 +251,7 @@ def run(
     else:
         ctx.obj.filter_config.min_urgency = Urgency.LATER
 
-    apply_filters(ctx, filters, substring)
+    apply_filters(ctx, filters, substring, allow_legacy_name_filter=allow_legacy_name_filter)
 
     # DO THE NEEDFUL
 
@@ -334,10 +354,18 @@ main.add_command(
 )
 
 
-def apply_filters(ctx: click.Context, filters: list[str], substring: str) -> None:
+def apply_filters(
+    ctx: click.Context,
+    filters: list[str],
+    substring: str,
+    *,
+    allow_legacy_name_filter: bool = False,
+) -> None:
     if substring and filters:
         raise click.UsageError("Cannot use -k together with positional filters")
 
+    ctx.obj.filter_config.allow_legacy_name_filter = allow_legacy_name_filter
+    ctx.obj.filter_config.fallback_to_legacy_name_filter = False
     if not substring and not filters:
         pass
     elif len(filters) == 1 and getattr(Urgency, filters[0].upper(), None):
@@ -349,11 +377,10 @@ def apply_filters(ctx: click.Context, filters: list[str], substring: str) -> Non
     elif substring:
         ctx.obj.filter_config.name_filter_re = f".*{re.escape(substring)}.*"
         ctx.obj.filter_config.legacy_name_filter_re = ctx.obj.filter_config.name_filter_re
-        ctx.obj.filter_config.use_legacy_name_filter = False
     else:
         ctx.obj.filter_config.name_filter_re = "|".join(rule_name_re(name) for name in filters)
         ctx.obj.filter_config.legacy_name_filter_re = "|".join(rule_name_re(name, legacy=True) for name in filters)
-        ctx.obj.filter_config.use_legacy_name_filter = False
+        ctx.obj.filter_config.fallback_to_legacy_name_filter = not allow_legacy_name_filter
 
 
 def verbose_init(v: int, verbose: Optional[int], vmodule: Optional[str]) -> None:
