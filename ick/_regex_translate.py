@@ -6,13 +6,12 @@ def rule_name_re(name: str, *, legacy: bool = False) -> str:
     """
     Return a regex used with ``fullmatch`` for rule selection.
 
-    New behavior matches the repo-local rule name exactly.
-    Legacy behavior matches the old prefix-aware form, where the prefix and
-    rule name were joined with ``/`` and descendants also matched.
+    Both the new and legacy forms match a rule name plus descendants.
+    The legacy form additionally converts a ``:`` prefix separator to ``/``.
     """
     if legacy:
         return f"^{name.replace(':', '/').rstrip('/')}($|/.*$)"
-    return f"^{name}$"
+    return f"^{name.rstrip('/')}($|/.*$)"
 
 
 def zfilename_re(opts: Iterable[str]) -> re.Pattern[str]:

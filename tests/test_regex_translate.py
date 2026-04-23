@@ -7,7 +7,8 @@ def test_advice_name_matching() -> None:
     foo_match = re.compile(rule_name_re("foo")).fullmatch
     assert foo_match("foo")
     assert not foo_match("prefix:foo")
-    assert not foo_match("foo/bar")
+    assert foo_match("foo/bar")
+    assert foo_match("foo/bar/goo")
     assert not foo_match("food_truck")
     assert not foo_match("py:foo/bar")
     assert not foo_match("py:foo/goo")
@@ -17,7 +18,7 @@ def test_advice_name_matching_subdir_rule_across_prefixes() -> None:
     foo_match = re.compile(rule_name_re("subdir/rule")).fullmatch
     assert foo_match("subdir/rule")
     assert not foo_match("prefix:subdir/rule")
-    assert not foo_match("subdir/rule/extra")
+    assert foo_match("subdir/rule/extra")
     assert not foo_match("prefix:subdir/rule/extra")
     assert not foo_match("food_truck")
 
