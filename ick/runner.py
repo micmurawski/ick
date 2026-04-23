@@ -104,16 +104,12 @@ class Runner:
                 rules.append(get_impl(rule)(rule))
             return rules
 
-        rules = matched_rules(legacy=self.rtc.filter_config.allow_legacy_name_filter)
-        if not rules and self.rtc.filter_config.fallback_to_legacy_name_filter:
+        rules = matched_rules(legacy=False)
+        if not rules and self.rtc.filter_config.allow_legacy_name_filter:
             rules = matched_rules(legacy=True)
 
         if not rules and len(self.rules) > 0:
-            pattern = (
-                self.rtc.filter_config.legacy_name_filter_re
-                if self.rtc.filter_config.allow_legacy_name_filter
-                else self.rtc.filter_config.name_filter_re
-            )
+            pattern = self.rtc.filter_config.name_filter_re
             print(
                 f"[red]No rules found with urgency '{self.rtc.filter_config.min_urgency.value}' or greater that matches the pattern '{pattern}'.[/red]"
             )

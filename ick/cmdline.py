@@ -365,7 +365,6 @@ def apply_filters(
         raise click.UsageError("Cannot use -k together with positional filters")
 
     ctx.obj.filter_config.allow_legacy_name_filter = allow_legacy_name_filter
-    ctx.obj.filter_config.fallback_to_legacy_name_filter = False
     if not substring and not filters:
         pass
     elif len(filters) == 1 and getattr(Urgency, filters[0].upper(), None):
@@ -380,7 +379,6 @@ def apply_filters(
     else:
         ctx.obj.filter_config.name_filter_re = "|".join(rule_name_re(name) for name in filters)
         ctx.obj.filter_config.legacy_name_filter_re = "|".join(rule_name_re(name, legacy=True) for name in filters)
-        ctx.obj.filter_config.fallback_to_legacy_name_filter = not allow_legacy_name_filter
 
 
 def verbose_init(v: int, verbose: Optional[int], vmodule: Optional[str]) -> None:

@@ -33,8 +33,6 @@ class FilterConfig(Struct):
     legacy_name_filter_re: str = ".*"
     #: If true, use the legacy prefix-aware matcher instead of the new one.
     allow_legacy_name_filter: bool = False
-    #: If true, retry with the legacy matcher after the new matcher finds no rules.
-    fallback_to_legacy_name_filter: bool = False
     #: Default means "don't filter any production urgencies"
     min_urgency: Urgency = Urgency.LATER
     min_risk: Risk = Risk.HIGH
