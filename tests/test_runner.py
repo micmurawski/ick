@@ -12,9 +12,9 @@ from feedforward.step import Step
 from ick.base_rule import BaseRule, GenericPreparedStep
 from ick.cmdline import apply_filters
 from ick.config import MainConfig, RuleConfig, RulesConfig, RuntimeConfig, Settings
-from ick_protocol import Finished
 from ick.runner import Runner
 from ick.types_project import BaseRepo
+from ick_protocol import Finished
 
 
 def _step(patterns: list[str], rule_prepare=None) -> GenericPreparedStep:
