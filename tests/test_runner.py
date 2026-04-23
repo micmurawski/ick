@@ -1,14 +1,20 @@
 import subprocess
 import sys
 import threading
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterable
 
 import pytest
 from feedforward import Notification, Run, State
 from feedforward.step import Step
 
-from ick.base_rule import GenericPreparedStep
+from ick.base_rule import BaseRule, GenericPreparedStep
+from ick.cmdline import apply_filters
+from ick.config import MainConfig, RuleConfig, RulesConfig, RuntimeConfig, Settings
 from ick_protocol import Finished
+from ick.runner import Runner
+from ick.types_project import BaseRepo
 
 
 def _step(patterns: list[str], rule_prepare=None) -> GenericPreparedStep:
@@ -126,6 +132,45 @@ def test_default_parallelism_is_at_least_two() -> None:
 
     run.run_to_completion({"a": "x", "b": "y"})
     assert not step.cancelled
+
+
+def test_no_rules_found_mentions_legacy_flag_when_it_would_help(capsys) -> None:
+    class DummyRule(BaseRule):
+        def __init__(self, rule_config: RuleConfig) -> None:
+            super().__init__(rule_config)
+
+    rule = RuleConfig(
+        name="rule",
+        impl="dummy",
+        full_name="subdir/rule",
+        prefixed_name="prefix:subdir/rule",
+    )
+    rtc = RuntimeConfig(main_config=MainConfig.DEFAULT, rules_config=RulesConfig(), settings=Settings())
+    runner = Runner(rtc, BaseRepo(root=Path.cwd()))
+    runner.rules = [rule]
+    runner.projects = []
+    apply_filters(
+        SimpleNamespace(obj=SimpleNamespace(filter_config=runner.rtc.filter_config)),
+        ["prefix:subdir/rule"],
+        "",
+        allow_legacy_name_filter=False,
+    )
+
+    def fake_get_impl(_: RuleConfig) -> type[BaseRule]:
+        return DummyRule
+
+    from ick import runner as runner_module
+
+    original_get_impl = runner_module.get_impl
+    runner_module.get_impl = fake_get_impl
+    try:
+        assert list(runner.iter_rule_impl()) == []
+    finally:
+        runner_module.get_impl = original_get_impl
+
+    out = capsys.readouterr().out
+    assert "No rules found" in out
+    assert "--allow-legacy-name-filter" in out
 
 
 def _finished(results: list) -> Finished:

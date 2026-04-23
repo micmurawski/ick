@@ -105,13 +105,19 @@ class Runner:
             return rules
 
         rules = matched_rules(legacy=False)
+        legacy_rules: list[BaseRule] = []
         if not rules and self.rtc.filter_config.allow_legacy_name_filter:
             rules = matched_rules(legacy=True)
+        elif not rules:
+            legacy_rules = matched_rules(legacy=True)
 
         if not rules and len(self.rules) > 0:
             pattern = self.rtc.filter_config.name_filter_re
+            hint = ""
+            if legacy_rules:
+                hint = " Try --allow-legacy-name-filter."
             print(
-                f"[red]No rules found with urgency '{self.rtc.filter_config.min_urgency.value}' or greater that matches the pattern '{pattern}'.[/red]"
+                f"[red]No rules found with urgency '{self.rtc.filter_config.min_urgency.value}' or greater that matches the pattern '{pattern}'.{hint}[/red]"
             )
 
         for rule in rules:
