@@ -38,3 +38,9 @@ ignore_project_dirs = [...]
 
 Note that explicit dirs still need to contain markers, so their type can be
 inferred.
+
+Per-project ignores live in the project directory itself, using either an
+`ick.toml` file or `[tool.ick]` inside `pyproject.toml`. If both exist, ick
+merges them, with `ick.toml` taking precedence on conflicts. These config files
+can set `ignore_rules`, `ignore_filenames`, and per-rule `rules` entries keyed
+by the repo-local rule name such as `python/move_isort_cfg`.
