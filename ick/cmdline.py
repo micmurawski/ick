@@ -24,7 +24,7 @@ from .click_better import FlexibleGroup
 from .config import RuntimeConfig, Settings, load_main_config, load_rules_config, one_repo_config
 from .git import find_repo_root
 from .project_finder import find_projects as find_projects_fn
-from .runner import Runner, _demo_done_callback, _demo_status_callback, fmt_qualname
+from .runner import Runner, _demo_done_callback, _demo_status_callback, fmt_name
 from .types_project import maybe_repo
 
 
@@ -81,8 +81,8 @@ def find_projects(ctx: click.Context) -> None:
 
 
 @main.command()
-@click.option("--json", "json_flag", is_flag=True, help="Outputs json with rules info by qualname (can be used with run --json)")
-@click.option("-k", "substring", default="", help="Substring match on rule name (including prefix)")
+@click.option("--json", "json_flag", is_flag=True, help="Outputs json with rules info by prefixed name (can be used with run --json)")
+@click.option("-k", "substring", default="", help="Substring match on rule name")
 @click.argument("filters", nargs=-1)
 @click.pass_context
 def list_rules(ctx: click.Context, json_flag: bool, substring: str, filters: list[str]) -> None:
@@ -100,7 +100,7 @@ def list_rules(ctx: click.Context, json_flag: bool, substring: str, filters: lis
 
 @main.command()
 @click.pass_context
-@click.option("-k", "substring", default="", help="Substring match on rule name (including prefix)")
+@click.option("-k", "substring", default="", help="Substring match on rule name")
 @click.option("--update", is_flag=True, help="Update expected test output with actual rule output")
 @click.argument("filters", nargs=-1)
 def test_rules(ctx: click.Context, substring: str, update: bool, filters: list[str]) -> None:
@@ -155,7 +155,7 @@ def add_rule(
     rule-name (TEXT): The name of the new rule\n
     target-directory (PATH): The desired directory of the new rule.
     """
-    # TODO: Check if rule qualname already exists using ctx.obj
+    # TODO: Check if rule name already exists using ctx.obj
     if impl != "python":
         print("Rule structure initialization for non-python rules is not implemented yet")
         sys.exit(1)
@@ -185,11 +185,11 @@ def add_rule(
 @click.option("-n", "--dry-run", is_flag=True, help="Dry run mode, show counts of lines to change (default)")
 @click.option("-p", "--patch", is_flag=True, help="Show patches of changes to make")
 @click.option("--apply", is_flag=True, help="Apply changes")
-@click.option("--json", "json_flag", is_flag=True, help="Outputs modifications json by rule qualname (can be used with list-rules --json)")
+@click.option("--json", "json_flag", is_flag=True, help="Outputs modifications json by prefixed rule name (can be used with list-rules --json)")
 @click.option("--skip-update", is_flag=True, help="When loading rules from a repo, don't pull if some version already exists locally")
 @click.option("--emojis", is_flag=True, help="Show a waterfall of emojis as work is being done")
 @click.option("--parallelism", type=int, default=0, help="Number of parallel workers (default: auto)")
-@click.option("-k", "substring", default="", help="Substring match on rule name (including prefix)")
+@click.option("-k", "substring", default="", help="Substring match on rule name")
 @click.argument("filters", nargs=-1)
 @click.pass_context
 def run(
@@ -282,7 +282,7 @@ def run(
     else:
         for result in r.run_steps(steps):
             where = f" on {result.project}" if result.project else ""
-            print(f"-> [bold]{fmt_qualname(result.rule, result.prefix)}[/bold]{where}: ", end="")
+            print(f"-> [bold]{fmt_name(result.rule)}[/bold]{where}: ", end="")
             match result.finished.status:
                 case RuleStatus.ERROR:
                     print("[red]ERROR[/red]")
@@ -348,8 +348,12 @@ def apply_filters(ctx: click.Context, filters: list[str], substring: str) -> Non
         ctx.obj.filter_config.min_urgency = urgency
     elif substring:
         ctx.obj.filter_config.name_filter_re = f".*{re.escape(substring)}.*"
+        ctx.obj.filter_config.legacy_name_filter_re = ctx.obj.filter_config.name_filter_re
+        ctx.obj.filter_config.use_legacy_name_filter = False
     else:
         ctx.obj.filter_config.name_filter_re = "|".join(rule_name_re(name) for name in filters)
+        ctx.obj.filter_config.legacy_name_filter_re = "|".join(rule_name_re(name, legacy=True) for name in filters)
+        ctx.obj.filter_config.use_legacy_name_filter = False
 
 
 def verbose_init(v: int, verbose: Optional[int], vmodule: Optional[str]) -> None:

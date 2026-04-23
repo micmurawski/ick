@@ -13,7 +13,7 @@ from ick_protocol import Finished
 
 def _step(patterns: list[str], rule_prepare=None) -> GenericPreparedStep:
     return GenericPreparedStep(
-        qualname="test_rule",
+        prefixed_name="test_rule",
         patterns=patterns,
         project_path="",
         cmdline=[sys.executable, "-c", "pass"],
@@ -29,7 +29,7 @@ def _step_with_excludes(
     project_path: str = "",
 ) -> GenericPreparedStep:
     return GenericPreparedStep(
-        qualname="test_rule",
+        prefixed_name="test_rule",
         patterns=patterns,
         project_path=project_path,
         cmdline=[sys.executable, "-c", "pass"],
@@ -92,7 +92,7 @@ def test_timeout_in_prepare_run_continues_with_next_step(parallelism: int) -> No
     run = Run(parallelism=parallelism)
     step0 = _step(["*.py"], rule_prepare=failing_prepare)
     step1 = GenericPreparedStep(
-        qualname="test_rule_2",
+        prefixed_name="test_rule_2",
         patterns=["*.txt"],
         project_path="",
         cmdline=[sys.executable, "-c", "import sys; [open(f, 'w').write('modified') for f in sys.argv[1:]]"],
